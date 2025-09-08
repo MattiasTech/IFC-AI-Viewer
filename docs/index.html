@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>IFC AI Viewer — Local & Encrypted BYOK</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+
+  <!-- CSP for a static, privacy-first app -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self';
+                 script-src 'self' 'wasm-unsafe-eval';
+                 style-src 'self' 'unsafe-inline';
+                 connect-src 'self' https://api.openai.com https://*.openai.azure.com;
+                 img-src 'self' data:;
+                 worker-src 'self' blob:;
+                 object-src 'none'">
+
+  <style>
+    html, body { height: 100%; margin: 0; font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    #viewer { position: absolute; inset: 0; }
+    #topbar {
+      position: absolute; top: 10px; left: 10px; right: 10px; z-index: 10;
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      background: rgba(255,255,255,0.95); padding: 8px 10px; border-radius: 8px;
+    }
+    #progress {
+      position: absolute; top: 70px; right: 10px; z-index: 10;
+      background: rgba(0,0,0,0.75); color: white; padding: 8px 10px; border-radius: 8px;
+      font-size: 12px;
+    }
+    #results {
+      position: absolute; left: 10px; bottom: 10px; z-index: 10;
+      background: rgba(255,255,255,0.95); padding: 8px; border-radius: 8px;
+      max-height: 36%; overflow: auto; width: 520px;
+    }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border-bottom: 1px solid #ddd; padding: 4px 6px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div id="viewer"></div>
+
+  <div id="topbar">
+    <!-- BYOK -->
+    <input id="passphrase" type="password" size="18" placeholder="Passphrase"/>
+    <input id="api-key" type="password" size="28" placeholder="OpenAI API key (kept encrypted)"/>
+    <button id="save-key">Save Key</button>
+    <button id="forget-key">Forget Key</button>
+    <span style="margin:0 6px;color:#bbb;">|</span>
+
+    <!-- IFC + Query -->
+    <input id="ifc-file" type="file" accept=".ifc"/>
+    <input id="query" size="42" placeholder="Ask: show all walls of type YV1"/>
+    <label><input type="checkbox" id="strict" checked/> Strict (send schema only)</label>
+    <button id="ask">Ask</button>
+    <button id="reset">Reset</button>
+    <button id="export">Export CSV</button>
+  </div>
+
+  <div id="progress" hidden>Loading…</div>
+
+  <div id="results" hidden>
+    <div style="margin-bottom:6px;"><strong>Matches:</strong> <span id="match-count">0</span></div>
+    <table>
+      <thead><tr><th>GlobalId</th><th>Class</th><th>Name</th><th>Type</th></tr></thead>
+      <tbody id="match-rows"></tbody>
+    </table>
+  </div>
+
+  <!-- App entry (root-relative) -->
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
