@@ -9,14 +9,15 @@ const files = [
   // three-mesh-bvh (ESM)
   { url: 'https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.9.1/build/index.module.js', path: 'vendor/three-mesh-bvh.module.js' },
 
-  // IFC.js loader and WASM runtime
-  { url: 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.56/web-ifc-api.js', path: 'vendor/web-ifc-api.js' },
+  // IFC.js loader
   { url: 'https://cdn.jsdelivr.net/npm/web-ifc-three@0.0.126/IFCLoader.js', path: 'vendor/IFCLoader.js' },
 
-  // web-ifc WASM binaries (version must match the runtime)
-  { url: 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.56/wasm/web-ifc.wasm', path: 'wasm/web-ifc.wasm' },
-  { url: 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.56/wasm/web-ifc-mt.wasm', path: 'wasm/web-ifc-mt.wasm' },
-  { url: 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.56/wasm/web-ifc.wasm.wasm', path: 'wasm/web-ifc.wasm.wasm' }
+  // web-ifc runtime (match WASM and API versions!)
+  { url: 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.69/web-ifc-api.js', path: 'vendor/web-ifc-api.js' },
+
+  // web-ifc WASM binaries (exported at package root since 0.65+)
+  { url: 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.69/web-ifc.wasm', path: 'wasm/web-ifc.wasm' },
+  { url: 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.69/web-ifc-mt.wasm', path: 'wasm/web-ifc-mt.wasm' }
 ];
 
 await mkdir('vendor', { recursive: true });
