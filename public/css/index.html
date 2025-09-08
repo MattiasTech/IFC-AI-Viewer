@@ -1,11 +1,11 @@
+<!-- public/index.html -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>IFC AI Viewer (Local) — Entra + BYOK OpenAI</title>
+  <title>IFC AI Viewer — Local & Encrypted BYOK</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
 
-  <!-- For GitHub Pages we use a meta CSP (cannot set response headers). Allow vendor CDNs only if you did not run the vendor script. -->
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self';
                  script-src 'self' 'wasm-unsafe-eval';
@@ -16,27 +16,17 @@
                  object-src 'none'">
 
   <link rel="stylesheet" href="./css/styles.css"/>
-
-  <!-- Vendor (local copies fetched by scripts/fetch-vendor.mjs). -->
-  <script src="./vendor/msal-browser.min.js"></script>
 </head>
 <body>
   <div id="viewer"></div>
 
   <div id="topbar">
-    <!-- Auth -->
-    <button id="signin">Sign in</button>
-    <div id="user" style="font-weight:600;"></div>
-    <button id="signout" hidden>Sign out</button>
-    <span style="margin:0 6px;color:#bbb;">|</span>
-
-    <!-- LLM BYOK -->
-    <input id="api-key" type="password" size="28" placeholder="OpenAI API key (kept locally)"/>
-    <input id="passphrase" type="password" size="18" placeholder="Encrypt with passphrase (optional)"/>
+    <input id="passphrase" type="password" size="18" placeholder="Passphrase"/>
+    <input id="api-key" type="password" size="28" placeholder="OpenAI API key (kept encrypted)"/>
     <button id="save-key">Save Key</button>
+    <button id="forget-key">Forget Key</button>
     <span style="margin:0 6px;color:#bbb;">|</span>
 
-    <!-- IFC/Query -->
     <input id="ifc-file" type="file" accept=".ifc"/>
     <input id="query" size="42" placeholder="Ask: show all walls of type YV1"/>
     <label><input type="checkbox" id="strict" checked/> Strict (send schema only)</label>
@@ -55,7 +45,6 @@
     </table>
   </div>
 
-  <!-- ESM modules -->
   <script type="module" src="./../src/app.js"></script>
 </body>
 </html>
