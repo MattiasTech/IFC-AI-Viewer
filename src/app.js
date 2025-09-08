@@ -4,7 +4,10 @@ import { planFilterWithLLM } from './ai.js';
 import { toCSV, downloadCSV } from './csv.js';
 import { storeSecret, loadSecret, forgetSecret } from './utils/crypto.js';
 
+console.log('[app] module loaded');
+
 const viewer = new ViewerApp();
+console.log('[app] ViewerApp created', viewer);
 
 // UI
 const fileInput = document.getElementById('ifc-file');
@@ -30,10 +33,12 @@ if (stored) apiKeyInput.value = stored;
 
 fileInput.addEventListener('change', async (e) => {
   const file = e.target.files?.[0];
+  console.log('[app] file input change', file && file.name);
   if (!file) return;
   progressEl.hidden = false;
   await viewer.loadIFCFile(file, txt => {
     progressEl.textContent = txt || 'Ready';
+    console.log('[app] loadIFCFile progress:', txt);
     if (!txt) setTimeout(() => progressEl.hidden = true, 500);
   });
   resultsWrap.hidden = true;
@@ -57,6 +62,7 @@ resetBtn.addEventListener('click', () => { viewer.resetView(); renderResults([])
 exportBtn.addEventListener('click', onExport);
 
 async function onAsk() {
+  console.log('[app] onAsk called', { hasModel: !!viewer.model, prompt: promptInput.value });
   if (!viewer.model) return alert('Load an IFC file first.');
   const userPrompt = promptInput.value.trim();
   if (!userPrompt) return;
@@ -75,6 +81,7 @@ async function onAsk() {
 
   try {
     progressEl.hidden = false; progressEl.textContent = 'Planning query with LLM…';
+  console.log('[app] requesting planFilterWithLLM', { userPrompt, strict: strictChk.checked });
     const spec = await planFilterWithLLM({
       apiKey,
       model: 'gpt-4o-mini',
@@ -84,11 +91,12 @@ async function onAsk() {
     });
 
     progressEl.textContent = 'Applying filter…';
+  console.log('[app] received spec from LLM', spec);
     const matches = viewer.queryLocal(spec);
     viewer.isolateByExpressIDs(matches.map(m => m.expressID));
     renderResults(matches);
   } catch (err) {
-    console.error(err);
+  console.error('[app] onAsk error', err);
     alert('Query failed. Check console.');
   } finally {
     progressEl.textContent = ''; progressEl.hidden = true;
