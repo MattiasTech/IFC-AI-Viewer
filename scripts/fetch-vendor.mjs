@@ -3,24 +3,24 @@ import { mkdir, writeFile } from 'node:fs/promises';
 
 const files = [
   // three.js (r160 example)
-  { url: 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js', path: 'public/vendor/three.module.js' },
-  { url: 'https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/controls/OrbitControls.js', path: 'public/vendor/OrbitControls.js' },
+  { url: 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js', path: 'vendor/three.module.js' },
+  { url: 'https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/controls/OrbitControls.js', path: 'vendor/OrbitControls.js' },
 
   // three-mesh-bvh (ESM)
-  { url: 'https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.9.1/build/index.module.js', path: 'public/vendor/three-mesh-bvh.module.js' },
+  { url: 'https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.9.1/build/index.module.js', path: 'vendor/three-mesh-bvh.module.js' },
 
   // IFC.js loader and WASM runtime
-  { url: 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.56/web-ifc-api.js', path: 'public/vendor/web-ifc-api.js' },
-  { url: 'https://cdn.jsdelivr.net/npm/web-ifc-three@0.0.126/IFCLoader.js', path: 'public/vendor/IFCLoader.js' },
+  { url: 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.56/web-ifc-api.js', path: 'vendor/web-ifc-api.js' },
+  { url: 'https://cdn.jsdelivr.net/npm/web-ifc-three@0.0.126/IFCLoader.js', path: 'vendor/IFCLoader.js' },
 
-  // web-ifc WASM binaries (version must match the web-ifc runtime)
-  { url: 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.56/wasm/web-ifc.wasm', path: 'public/wasm/web-ifc.wasm' },
-  { url: 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.56/wasm/web-ifc-mt.wasm', path: 'public/wasm/web-ifc-mt.wasm' },
-  { url: 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.56/wasm/web-ifc.wasm.wasm', path: 'public/wasm/web-ifc.wasm.wasm' }
+  // web-ifc WASM binaries (version must match the runtime)
+  { url: 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.56/wasm/web-ifc.wasm', path: 'wasm/web-ifc.wasm' },
+  { url: 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.56/wasm/web-ifc-mt.wasm', path: 'wasm/web-ifc-mt.wasm' },
+  { url: 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.56/wasm/web-ifc.wasm.wasm', path: 'wasm/web-ifc.wasm.wasm' }
 ];
 
-await mkdir('public/vendor', { recursive: true });
-await mkdir('public/wasm', { recursive: true });
+await mkdir('vendor', { recursive: true });
+await mkdir('wasm', { recursive: true });
 
 for (const f of files) {
   const res = await fetch(f.url);
