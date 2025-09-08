@@ -1,0 +1,19 @@
+html, body { height: 100%; margin: 0; font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+#viewer { position: absolute; inset: 0; }
+#topbar {
+  position: absolute; top: 10px; left: 10px; right: 10px; z-index: 10;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  background: rgba(255,255,255,0.95); padding: 8px 10px; border-radius: 8px;
+}
+#results {
+  position: absolute; left: 10px; bottom: 10px; z-index: 10;
+  background: rgba(255,255,255,0.95); padding: 8px; border-radius: 8px;
+  max-height: 36%; overflow: auto; width: 520px;
+}
+table { border-collapse: collapse; width: 100%; }
+th, td { border-bottom: 1px solid #ddd; padding: 4px 6px; font-size: 12px; }
+#progress {
+  position: absolute; top: 70px; right: 10px; z-index: 10;
+  background: rgba(0,0,0,0.75); color: white; padding: 8px 10px; border-radius: 8px;
+  font-size: 12px;
+}
