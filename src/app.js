@@ -1,97 +1,77 @@
 // src/app.js
-import { msalInstance, handleRedirect, getAccount, signIn, signOut } from './auth.js';
 import { ViewerApp } from './viewer.js';
 import { planFilterWithLLM } from './ai.js';
 import { toCSV, downloadCSV } from './csv.js';
-import { storeSecret, loadSecret } from './utils/crypto.js';
+import { storeSecret, loadSecret, forgetSecret } from './utils/crypto.js';
 
 const viewer = new ViewerApp();
 
-// UI refs
-const signinBtn = document.getElementById('signin');
-const signoutBtn = document.getElementById('signout');
-const userEl = document.getElementById('user');
-
+// UI
 const fileInput = document.getElementById('ifc-file');
 const askBtn = document.getElementById('ask');
 const resetBtn = document.getElementById('reset');
 const exportBtn = document.getElementById('export');
 const promptInput = document.getElementById('query');
+
 const apiKeyInput = document.getElementById('api-key');
 const passphraseInput = document.getElementById('passphrase');
 const saveKeyBtn = document.getElementById('save-key');
+const forgetKeyBtn = document.getElementById('forget-key');
 const strictChk = document.getElementById('strict');
-const progressEl = document.getElementById('progress');
 
+const progressEl = document.getElementById('progress');
 const resultsWrap = document.getElementById('results');
 const matchCount = document.getElementById('match-count');
 const matchRows = document.getElementById('match-rows');
 
-init();
+// Restore non-encrypted key if present (dev convenience)
+const stored = localStorage.getItem('openai_key');
+if (stored) apiKeyInput.value = stored;
 
-async function init() {
-  await handleRedirect();
-  updateAuthUI();
-
-  // restore saved key if not encrypted
-  const stored = localStorage.getItem('openai_key');
-  if (stored) apiKeyInput.value = stored;
-
-  signinBtn.addEventListener('click', () => signIn());
-  signoutBtn.addEventListener('click', () => signOut());
-
-  saveKeyBtn.addEventListener('click', async () => {
-    const key = apiKeyInput.value.trim();
-    const pass = passphraseInput.value.trim();
-    if (!key) return alert('Enter your OpenAI API key first.');
-    await storeSecret('openai_key', key, pass || null);
-    alert('Key saved locally.');
+fileInput.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  progressEl.hidden = false;
+  await viewer.loadIFCFile(file, txt => {
+    progressEl.textContent = txt || 'Ready';
+    if (!txt) setTimeout(() => progressEl.hidden = true, 500);
   });
+  resultsWrap.hidden = true;
+});
 
-  fileInput.addEventListener('change', async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    progressEl.hidden = false;
-    await viewer.loadIFCFile(file, txt => {
-      progressEl.textContent = txt || 'Ready';
-      if (!txt) setTimeout(() => progressEl.hidden = true, 500);
-    });
-    resultsWrap.hidden = true;
-  });
+saveKeyBtn.addEventListener('click', async () => {
+  const key = apiKeyInput.value.trim();
+  const pass = passphraseInput.value.trim();
+  if (!key) return alert('Enter your OpenAI API key first.');
+  await storeSecret('openai_key', key, pass || null);
+  alert(pass ? 'Key encrypted and saved locally.' : 'Key saved locally (not encrypted).');
+});
 
-  askBtn.addEventListener('click', onAsk);
-  resetBtn.addEventListener('click', () => { viewer.resetView(); renderResults([]); });
-  exportBtn.addEventListener('click', onExport);
-}
+forgetKeyBtn.addEventListener('click', () => {
+  forgetSecret('openai_key');
+  alert('Key removed from this browser.');
+});
 
-function updateAuthUI() {
-  const account = getAccount();
-  if (account) {
-    userEl.textContent = `Signed in as ${account.username || account.name || account.localAccountId}`;
-    signinBtn.hidden = true;
-    signoutBtn.hidden = false;
-  } else {
-    userEl.textContent = '';
-    signinBtn.hidden = false;
-    signoutBtn.hidden = true;
-  }
-}
+askBtn.addEventListener('click', onAsk);
+resetBtn.addEventListener('click', () => { viewer.resetView(); renderResults([]); });
+exportBtn.addEventListener('click', onExport);
 
 async function onAsk() {
-  const account = getAccount();
-  if (!account) return alert('Please sign in first (Entra ID).');
-
   if (!viewer.model) return alert('Load an IFC file first.');
   const userPrompt = promptInput.value.trim();
   if (!userPrompt) return;
 
   let apiKey = apiKeyInput.value.trim();
   if (!apiKey) {
-    // try to load decrypted
+    // Attempt to decrypt stored key
     const pass = passphraseInput.value.trim();
-    apiKey = await loadSecret('openai_key', pass || null);
+    try {
+      apiKey = await loadSecret('openai_key', pass || null);
+    } catch {
+      apiKey = '';
+    }
   }
-  if (!apiKey) return alert('OpenAI API key is required (stored locally).');
+  if (!apiKey) return alert('OpenAI API key is required. Enter or decrypt it with your passphrase.');
 
   try {
     progressEl.hidden = false; progressEl.textContent = 'Planning query with LLM…';
@@ -109,7 +89,7 @@ async function onAsk() {
     renderResults(matches);
   } catch (err) {
     console.error(err);
-    alert('Query failed. See console for details.');
+    alert('Query failed. Check console.');
   } finally {
     progressEl.textContent = ''; progressEl.hidden = true;
   }
