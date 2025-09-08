@@ -1,10 +1,9 @@
 // src/viewer.js
-import * as THREE from '../public/vendor/three.module.js';
-import { OrbitControls } from '../public/vendor/OrbitControls.js';
-import { IFCLoader } from '../public/vendor/IFCLoader.js';
-import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from '../public/vendor/three-mesh-bvh.module.js';
+import * as THREE from '../vendor/three.module.js';
+import { OrbitControls } from '../vendor/OrbitControls.js';
+import { IFCLoader } from '../vendor/IFCLoader.js';
+import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from '../vendor/three-mesh-bvh.module.js';
 
-// Enable BVH accelerated raycasting (big perf boost on selection/filtering)
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
 THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
 THREE.Mesh.prototype.raycast = acceleratedRaycast;
@@ -25,18 +24,13 @@ export class ViewerApp {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.target.set(0, 0, 0);
 
-    // Lights
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x888888, 1.1);
-    this.scene.add(hemi);
-    const dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(10, 20, 10);
-    this.scene.add(dir);
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x888888, 1.1); this.scene.add(hemi);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(10, 20, 10); this.scene.add(dir);
 
-    // IFC loader
     this.ifcLoader = new IFCLoader();
-    // Set WASM path to local files
-    this.ifcLoader.ifcManager.setWasmPath('/wasm/');
-    // Robust boolean solver (avoid stalls in some files)
-    this.ifcLoader.ifcManager.applyWebIfcConfig({ USE_FAST_BOOLS: true }); // recommended for tricky models [9](https://stackoverflow.com/questions/73372336/ifc-file-that-works-on-ifcjs-web-ifc-viewer-and-not-on-ifcjs-web-ifc-three)
+    // WASM files are served from /wasm at the repo root
+    this.ifcLoader.ifcManager.setWasmPath('./wasm/');
+    this.ifcLoader.ifcManager.applyWebIfcConfig({ USE_FAST_BOOLS: true });
 
     this.model = null;
     this.index = { byExpressID: new Map(), byClass: new Map() };
@@ -47,35 +41,28 @@ export class ViewerApp {
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(window.innerWidth, window.innerHeight);
     });
-
     const animate = () => { requestAnimationFrame(animate); this.renderer.render(this.scene, this.camera); };
     animate();
   }
 
   async loadIFCFile(file, onProgress = () => {}) {
-    // large file: display progress text
     onProgress('Reading file…');
     const arrayBuffer = await file.arrayBuffer();
 
     onProgress('Parsing IFC (WASM)…');
     const model = await this.ifcLoader.parse(arrayBuffer, file.name);
-    this.model = model;
-    this.scene.add(model);
+    this.model = model; this.scene.add(model);
 
-    // Build BVH trees for meshes (faster interaction)
     this.model.traverse(obj => { if (obj.isMesh) obj.geometry?.computeBoundsTree?.(); });
 
-    onProgress('Indexing properties (lazy)…');
+    onProgress('Indexing properties…');
     await this.buildIndex(onProgress);
-
     onProgress('');
   }
 
   async buildIndex(onProgress = () => {}) {
     const ifc = this.ifcLoader.ifcManager;
     const modelID = this.model.modelID;
-
-    // Choose a set of common classes to index first; others can be added lazily
     const classes = [
       ifc.types.IFCWALL, ifc.types.IFCWALLSTANDARDCASE, ifc.types.IFCWINDOW,
       ifc.types.IFCDOOR, ifc.types.IFCSLAB, ifc.types.IFCCOLUMN, ifc.types.IFCBEAM,
@@ -85,10 +72,7 @@ export class ViewerApp {
     this.index = { byExpressID: new Map(), byClass: new Map() };
 
     let total = 0;
-    for (const cls of classes) {
-      const ids = await ifc.getAllItemsOfType(modelID, cls, false);
-      total += ids.length;
-    }
+    for (const cls of classes) total += (await ifc.getAllItemsOfType(modelID, cls, false)).length;
     let processed = 0;
 
     for (const cls of classes) {
@@ -96,10 +80,8 @@ export class ViewerApp {
       const ifcClassName = ifc.getIfcType(cls);
       if (ids.length) this.index.byClass.set(ifcClassName, []);
       for (const id of ids) {
-        // For big files, avoid deep property traversal first; fetch basics, then selected psets
         const props = await ifc.getItemProperties(modelID, id, true);
-        const psets = await ifc.getPropertySets(modelID, id, true); // consider lazy fetch if too slow
-
+        const psets = await ifc.getPropertySets(modelID, id, true);
         const pIndex = {};
         for (const p of psets || []) {
           const pName = p.Name?.value || p.Name || 'UnknownPset';
@@ -110,7 +92,6 @@ export class ViewerApp {
             if (n) pIndex[pName][n] = (typeof v === 'object' && v?.value !== undefined) ? v.value : v;
           });
         }
-
         const rec = {
           expressID: id,
           globalId: props.GlobalId?.value || props.GlobalId,
@@ -130,29 +111,20 @@ export class ViewerApp {
       }
     }
 
-    // Map element → meshes for visibility toggles
     this.model.traverse(obj => {
       if (obj.isMesh && obj.geometry?.attributes?.expressID) {
         const ids = obj.geometry.attributes.expressID.array;
         for (let i = 0; i < ids.length; i++) {
           const eid = ids[i];
           const rec = this.index.byExpressID.get(eid);
-          if (rec) {
-            if (!rec.meshIDs.includes(obj.id)) rec.meshIDs.push(obj.id);
-          }
+          if (rec && !rec.meshIDs.includes(obj.id)) rec.meshIDs.push(obj.id);
         }
       }
     });
   }
 
-  resetView() {
-    this.setVisibilityForAll(true);
-    this.filteredIDs = [];
-  }
-
-  setVisibilityForAll(visible) {
-    this.scene.traverse(obj => { if (obj.isMesh) obj.visible = visible; });
-  }
+  resetView() { this.setVisibilityForAll(true); this.filteredIDs = []; }
+  setVisibilityForAll(visible) { this.scene.traverse(o => { if (o.isMesh) o.visible = visible; }); }
 
   isolateByExpressIDs(ids) {
     this.setVisibilityForAll(false);
@@ -170,24 +142,14 @@ export class ViewerApp {
   queryLocal(filterSpec) {
     const { classes = [], conditions = [], limit = null } = filterSpec;
     const candidates = new Set();
-
-    if (classes.length) {
-      for (const cls of classes) {
-        const ids = this.index.byClass.get(cls) || [];
-        ids.forEach(id => candidates.add(id));
-      }
-    } else {
-      for (const ids of this.index.byClass.values()) ids.forEach(id => candidates.add(id));
-    }
+    if (classes.length) for (const cls of classes) (this.index.byClass.get(cls) || []).forEach(id => candidates.add(id));
+    else for (const ids of this.index.byClass.values()) ids.forEach(id => candidates.add(id));
 
     const res = [];
     for (const id of candidates) {
       const rec = this.index.byExpressID.get(id);
       if (!rec) continue;
-      if (this.matches(rec, conditions)) {
-        res.push(rec);
-        if (limit && res.length >= limit) break;
-      }
+      if (this.matches(rec, conditions)) { res.push(rec); if (limit && res.length >= limit) break; }
     }
     return res;
   }
@@ -196,17 +158,13 @@ export class ViewerApp {
     for (const c of conditions) {
       const { field, op, value } = c;
       let v = null;
-
       if (field.startsWith('pset:')) {
-        const parts = field.split(':'); // pset:Pset:Prop
-        const pset = parts[1], prop = parts[2];
+        const [, pset, prop] = field.split(':');
         v = rec.psets?.[pset]?.[prop] ?? null;
       } else {
-        if (field === 'IfcType') v = rec.ifcClass;
-        else v = rec[field] ?? null;
+        v = (field === 'IfcType') ? rec.ifcClass : (rec[field] ?? null);
       }
-
-      const str = (x) => (x === null || x === undefined) ? '' : String(x).toLowerCase();
+      const str = x => (x == null) ? '' : String(x).toLowerCase();
       const sV = str(v);
       const sVal = Array.isArray(value) ? value.map(str) : str(value);
 
