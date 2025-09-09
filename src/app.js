@@ -8,6 +8,31 @@ console.log('[app] module loaded');
 
 const viewer = new ViewerApp();
 console.log('[app] ViewerApp created', viewer);
+// expose for debugging in the console
+window.viewer = viewer;
+
+// On-page logger: mirrors console to a small panel for easier debugging
+try {
+  const _logPanel = document.createElement('div');
+  _logPanel.id = 'onpage-log';
+  Object.assign(_logPanel.style, {
+    position: 'fixed', left: '8px', top: '8px', width: '360px', maxHeight: '40vh', overflow: 'auto',
+    background: 'rgba(0,0,0,0.7)', color: 'white', fontSize: '12px', padding: '6px', zIndex: 9999,
+    fontFamily: 'monospace', borderRadius: '6px'
+  });
+  document.body.appendChild(_logPanel);
+  const appendLog = (level, ...args) => {
+    const line = document.createElement('div');
+    try { line.textContent = `[${level}] ${args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ')}`; }
+    catch (e) { line.textContent = `[${level}] (unserializable)`; }
+    _logPanel.appendChild(line);
+    if (_logPanel.childElementCount > 300) _logPanel.removeChild(_logPanel.firstChild);
+  };
+  ['log','info','warn','error'].forEach(l => {
+    const orig = console[l].bind(console);
+    console[l] = (...a) => { appendLog(l, ...a); orig(...a); };
+  });
+} catch (e) { /* ignore */ }
 
 // UI
 const fileInput = document.getElementById('ifc-file');

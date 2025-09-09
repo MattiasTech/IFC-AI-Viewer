@@ -10,16 +10,24 @@ THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
 export class ViewerApp {
   constructor() {
-    this.canvas = document.getElementById('viewer');
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xf8f8f8);
-    const aspect = window.innerWidth / window.innerHeight;
-    this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 5000);
-    this.camera.position.set(18, 14, 18);
+  this.canvas = document.getElementById('viewer');
+  this.scene = new THREE.Scene();
+  this.scene.background = new THREE.Color(0xf8f8f8);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.canvas.appendChild(this.renderer.domElement);
+  // create camera using container aspect ratio
+  const rect = this.canvas.getBoundingClientRect();
+  const cw = rect.width || window.innerWidth;
+  const ch = rect.height || window.innerHeight;
+  this.camera = new THREE.PerspectiveCamera(60, cw / ch, 0.1, 5000);
+  this.camera.position.set(18, 14, 18);
+
+  this.renderer = new THREE.WebGLRenderer({ antialias: true });
+  this.renderer.setPixelRatio(window.devicePixelRatio || 1);
+  // ensure the canvas fills the container
+  this.renderer.domElement.style.width = '100%';
+  this.renderer.domElement.style.height = '100%';
+  this.renderer.setSize(cw, ch);
+  this.canvas.appendChild(this.renderer.domElement);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.target.set(0, 0, 0);
@@ -36,11 +44,21 @@ export class ViewerApp {
     this.index = { byExpressID: new Map(), byClass: new Map() };
     this.filteredIDs = [];
 
-    window.addEventListener('resize', () => {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
+    const resize = () => {
+      const r = this.canvas.getBoundingClientRect();
+      const w = Math.max(1, Math.floor(r.width));
+      const h = Math.max(1, Math.floor(r.height));
+      this.camera.aspect = w / h;
       this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+      this.renderer.setSize(w, h);
+    };
+
+    // react to window resize and container changes
+    window.addEventListener('resize', resize);
+    if (typeof ResizeObserver !== 'undefined') {
+      this._ro = new ResizeObserver(resize);
+      this._ro.observe(this.canvas);
+    }
     const animate = () => { requestAnimationFrame(animate); this.renderer.render(this.scene, this.camera); };
     animate();
   }
@@ -51,13 +69,34 @@ export class ViewerApp {
 
     onProgress('Parsing IFC (WASM)…');
     const model = await this.ifcLoader.parse(arrayBuffer, file.name);
-    this.model = model; this.scene.add(model);
+  this.model = model; this.scene.add(model);
+  console.log('[viewer] model parsed and added to scene', { name: file.name, model });
 
     this.model.traverse(obj => { if (obj.isMesh) obj.geometry?.computeBoundsTree?.(); });
 
     onProgress('Indexing properties…');
     await this.buildIndex(onProgress);
+    // ensure the loaded model is framed in the viewer
+    this.frameModel();
     onProgress('');
+  }
+
+  frameModel() {
+    if (!this.model) return;
+    const box = new THREE.Box3().setFromObject(this.model);
+  console.log('[viewer] frameModel bounding box', box.min.toArray(), box.max.toArray());
+    if (!box.isEmpty()) {
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const fov = this.camera.fov * (Math.PI / 180);
+      const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5;
+      this.camera.position.set(center.x + cameraZ, center.y + cameraZ/3, center.z + cameraZ);
+      this.camera.lookAt(center);
+      this.controls.target.copy(center);
+      this.controls.update();
+  console.log('[viewer] camera positioned to frame model', { position: this.camera.position.toArray(), target: this.controls.target.toArray() });
+    }
   }
 
   async buildIndex(onProgress = () => {}) {

@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "three-mesh-bvh": "./vendor/three-mesh-bvh.module.js",
+    "web-ifc-api": "./vendor/web-ifc-api.js"
+  }
+}
