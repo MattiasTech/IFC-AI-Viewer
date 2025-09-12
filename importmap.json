@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "web-ifc": "./vendor/web-ifc-api.js",
+    "three/examples/jsm/utils/BufferGeometryUtils.js": "./vendor/BufferGeometryUtils.js"
+  }
+}
