@@ -1,0 +1,12 @@
+
+{
+  "name": "ifc-ai-viewer-local-byok-openai",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "vendor": "node scripts/fetch-vendor.mjs",
+    "serve": "npx http-server ./ -p 5173 -c-1",
+    "start": "npm run vendor && npm run serve"
+  }
+}
